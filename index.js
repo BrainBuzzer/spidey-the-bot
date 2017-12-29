@@ -6,7 +6,7 @@ require('dotenv').config()
 var app       = apiai(process.env.APIAI_TOKEN);
 var roomId    = process.env.ROOM;
 var token     = process.env.GITTER_TOKEN;
-var replied   = true;
+var replied   = false;
 var repText   = 'Mmmm';
 var sesReplied = false;
 
@@ -40,9 +40,9 @@ function fun() {
     if(sentBy !== "spideythebot") {
       var sentTime = data[data.length-1].sent;
       if(moment().diff(sentTime, 'minutes')>=2 && !replied) {
-        reply('Hi there');
+        reply('Hi there. Tag me with `@spideythebot` to chat with me.');
         replied = true;
-      } else if(replied && !sesReplied) {
+      } else if(replied && !sesReplied && data[data.length-1].text.includes('@spideythebot')) {
         if(data[data.length-1].text == '@spideythebot help') {
           reply("Are you a newcomer? You can ask me a lot of things.");
           sesReplied = true;
