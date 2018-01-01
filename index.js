@@ -6,9 +6,7 @@ require('dotenv').config()
 var app       = apiai(process.env.APIAI_TOKEN);
 var roomId    = process.env.ROOM;
 var token     = process.env.GITTER_TOKEN;
-var replied   = false;
-var repText   = 'Mmmm';
-var sesReplied = false;
+var userId    = process.env.USER_ID;
 
 var options = {
   baseURL:  'https://api.gitter.im/',
@@ -16,6 +14,22 @@ var options = {
   method:   'get',
   headers:  {'Authorization': 'Bearer ' + token}
 };
+
+var markAsRead = (messageId) => {
+  axios({
+    baseURL:  'https://api.gitter.im/',
+    url:      '/v1/user/' + userId + '/rooms/' + roomId + '/unreadItems',
+    method:   'post',
+    headers:  {'Authorization': 'Bearer ' + token},
+    data:     { chat: [messageId] }
+  }).then(res => {
+    if(res.status==200) {
+      console.log('message read');
+    } else {
+      console.log('failed');
+    }
+  })
+}
 
 var reply = (response) => {
   axios({
@@ -36,28 +50,21 @@ var reply = (response) => {
 function fun() {
   axios(options).then(msg => {
     var data = msg.data;
-    var sentBy = data[data.length-1].fromUser.username;
-    if(sentBy !== "spideythebot") {
-      var sentTime = data[data.length-1].sent;
-      if(moment().diff(sentTime, 'minutes')>=2 && !replied) {
-        reply('Hi there. Tag me with `@spideythebot` to chat with me.');
-        replied = true;
-      } else if(replied && !sesReplied && data[data.length-1].text.includes('@spideythebot')) {
-        if(data[data.length-1].text == '@spideythebot help') {
-          reply("Are you a newcomer? You can ask me a lot of things.");
-          sesReplied = true;
-        } else {
-          var request = app.textRequest(data[data.length-1].text, {
-            sessionId: 'Session'
-          });
-          request.on('response', function(response) {
-            reply(response.result.fulfillment.speech);
-          });
-          sesReplied = true;
-          request.end();
-        }
+    var a = data.length-1;
+    for(; a >= data.length-6; a--) {
+      var isUnread = ( data[a].unread==true );
+      var sentBy = data[a].fromUser.username;
+      if(sentBy !== "spideythebot" && data[a].text.includes('@spideythebot') && isUnread) {
+        var request = app.textRequest(data[a].text, {
+          sessionId: 'Session'
+        });
+        request.on('response', function(response) {
+          reply('@' + data[a].fromUser.username + ' ' + response.result.fulfillment.speech);
+        });
+        request.end();
+        markAsRead(data[a].id);
       } else {
-        sesReplied = false;
+        console.log(a)
       }
     }
   })
